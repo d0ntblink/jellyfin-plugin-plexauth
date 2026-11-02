@@ -20,6 +20,8 @@ jobs:
       - run: dotnet test tests/PlexAuth.Tests/PlexAuth.Tests.csproj
       - run: dotnet build tests/PlexAuth.TestProvider/PlexAuth.TestProvider.csproj
       - run: npm ci && npx playwright install --with-deps chromium
+      - name: Install isolated server prerequisite
+        run: sudo -n apt-get update && sudo -n apt-get install -y ffmpeg
       - name: Test real Jellyfin 12.4
         env:
           PLEXAUTH_TEST_DIR: ${{ runner.temp }}/plexauth-integration

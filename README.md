@@ -69,7 +69,7 @@ npx playwright install chromium
 dotnet build tests/PlexAuth.TestProvider/PlexAuth.TestProvider.csproj
 ```
 
-The integration harness requires Node 24, OpenSSL, Chromium's OS dependencies,
+The integration harness requires Node 24, OpenSSL, FFmpeg, Chromium's OS dependencies,
 and the official Jellyfin 12.4 application directory at
 `$PLEXAUTH_TEST_DIR/server`. It creates a fresh, loopback-only profile and local
 test certificate, simulates only Plex responses, and stops the server on exit.
