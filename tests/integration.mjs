@@ -60,7 +60,7 @@ try {
     const admin = await adminLogin.json();
     const pluginId = '679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd';
     const saved = await call('/Plugins/' + pluginId + '/Configuration', { method: 'POST', token: admin.AccessToken, body: { Enabled: true, PublicUrl: origin, MachineId: 'isolated-server', ClientIdentifier: 'isolated-test-client', LibraryIds: libraryIds } });
-    assert(saved.ok, 'Plugin configuration endpoint is available.');
+    assert(saved.ok, 'Plugin configuration endpoint returned ' + saved.status + '. Load diagnostics:\n' + log.split('\n').filter(line => /Loaded plugin:|Loaded assembly|Could not load|Failed to load|Unable to load/i.test(line)).join('\n'));
     assert.equal((await call('/plexauth/start', { method: 'POST', body: {}, extra: { Origin: 'https://attacker.example' } })).status, 403);
     const qc = await call('/QuickConnect/Initiate', { method: 'POST', extra: { Authorization: 'MediaBrowser Client="Finamp", Device="Phone", DeviceId="isolated-finamp", Version="1.0"' } });
     assert.equal(qc.status, 200);
@@ -69,6 +69,7 @@ try {
     assert.equal(started.status, 200);
     const cookie = started.headers.get('set-cookie').split(';')[0];
     const authUrl = new URL((await started.json()).url);
+    assert.equal(new URLSearchParams(authUrl.hash.slice(2)).get('code'), 'isolated-pin', 'The test-only Plex transport must be active.');
     const state = new URL(new URLSearchParams(authUrl.hash.slice(2)).get('forwardUrl')).searchParams.get('state');
     const completed = await call('/plexauth/complete', { method: 'POST', cookie, body: { state, deviceId: 'isolated-approval' }, extra: { Origin: origin } });
     assert.equal(completed.status, 200);

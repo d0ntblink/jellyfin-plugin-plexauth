@@ -17,13 +17,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace PlexAuth.TestProvider;
 
-public sealed class TestPlugin : BasePlugin<BasePluginConfiguration>
-{
-    public TestPlugin(IApplicationPaths paths, IXmlSerializer serializer) : base(paths, serializer) { }
-    public override string Name => "Plex Auth Isolated Test Provider";
-    public override Guid Id => Guid.Parse("074e8582-44e1-47fa-aa17-d9e8c3fdafba");
-}
-
 public sealed class TestRegistrator : IPluginServiceRegistrator
 {
     public void RegisterServices(IServiceCollection services, IServerApplicationHost applicationHost)
