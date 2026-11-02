@@ -1,0 +1,11 @@
+{
+  "name": "Plex Auth",
+  "guid": "679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd",
+  "version": "0.1.0.0",
+  "targetAbi": "12.0.0.0",
+  "status": "Active",
+  "autoUpdate": false,
+  "owner": "d0ntblink",
+  "description": "Experimental Plex account login and native Quick Connect authorization.",
+  "assemblies": ["Jellyfin.Plugin.PlexAuth.dll"]
+}

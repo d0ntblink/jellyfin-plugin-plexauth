@@ -46,7 +46,7 @@ dotnet build src/Jellyfin.Plugin.PlexAuth/Jellyfin.Plugin.PlexAuth.csproj -c Rel
 ```
 
 Copy **only** the production `Jellyfin.Plugin.PlexAuth.dll` from the Release
-output into its own directory under Jellyfin's actual plugin directory, then
+output and the production `meta.json` into `PlexAuth_0.1.0.0` under Jellyfin's actual plugin directory, then
 restart **Jellyfin only**. Never install the test-provider assembly. In
 Dashboard > Plugins > Plex Auth, configure the exact HTTPS URL, Plex machine
 identifier, and selected Jellyfin library UUIDs. The plugin is disabled by default.
