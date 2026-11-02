@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+.test-state/
+*.user
+*.log
+TestResults/
+artifacts/
+secrets/
+node_modules/

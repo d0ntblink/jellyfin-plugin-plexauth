@@ -1,0 +1,11 @@
+{
+  "name": "jellyfin-plugin-plexauth-tests",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "test:unit": "dotnet test tests/PlexAuth.Tests/PlexAuth.Tests.csproj",
+    "test:integration": "dotnet build tests/PlexAuth.TestProvider/PlexAuth.TestProvider.csproj && node tests/integration.mjs"
+  },
+  "devDependencies": { "playwright": "^1.58.2" }
+}

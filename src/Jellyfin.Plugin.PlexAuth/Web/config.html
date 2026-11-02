@@ -1,0 +1,31 @@
+<!doctype html><html><body><div id="plexConfig" data-role="page" class="page type-interior pluginConfigurationPage"><div data-role="content"><div class="content-primary"><form id="plexConfigForm">
+<div class="checkboxContainer"><label><input is="emby-checkbox" type="checkbox" id="plexEnabled"><span>Enable Plex login</span></label></div>
+<div class="inputContainer"><label for="plexUrl">Jellyfin HTTPS URL</label><input is="emby-input" id="plexUrl" type="url" required></div>
+<div class="inputContainer"><label for="plexMachine">Plex machine identifier</label><input is="emby-input" id="plexMachine" required></div>
+<div class="inputContainer"><label for="plexLibraries">Five Jellyfin library IDs (comma-separated)</label><input is="emby-input" id="plexLibraries" required></div>
+<button is="emby-button" type="submit" class="raised button-submit block"><span>Save</span></button>
+</form></div></div><script type="text/javascript">
+(function () {
+    const id = '679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd';
+    const page = document.getElementById('plexConfig');
+    page.addEventListener('pageshow', async function () {
+        Dashboard.showLoadingMsg();
+        try {
+            const config = await ApiClient.getPluginConfiguration(id);
+            document.getElementById('plexEnabled').checked = config.Enabled;
+            document.getElementById('plexUrl').value = config.PublicUrl;
+            document.getElementById('plexMachine').value = config.MachineId;
+            document.getElementById('plexLibraries').value = (config.LibraryIds || []).join(',');
+        } finally { Dashboard.hideLoadingMsg(); }
+    });
+    document.getElementById('plexConfigForm').addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const config = await ApiClient.getPluginConfiguration(id);
+        config.Enabled = document.getElementById('plexEnabled').checked;
+        config.PublicUrl = document.getElementById('plexUrl').value.trim().replace(/\/$/, '');
+        config.MachineId = document.getElementById('plexMachine').value.trim();
+        config.LibraryIds = document.getElementById('plexLibraries').value.split(',').map(value => value.trim()).filter(Boolean);
+        Dashboard.processPluginConfigurationUpdateResult(await ApiClient.updatePluginConfiguration(id, config));
+    });
+})();
+</script></div></body></html>

@@ -1,0 +1,12 @@
+:root { color-scheme: dark; font-family: 'Noto Sans', sans-serif; color: #f2f2f2; background: #101010; }
+body { margin: 0; }
+main { max-width: 28rem; margin: 12vh auto 0; padding: 1.5rem; }
+h1 { font-size: 1.5rem; margin: 1rem 0 1.5rem; }
+label { display: block; margin: 0 0 .5rem; }
+input, button { box-sizing: border-box; width: 100%; min-height: 3rem; font: inherit; border-radius: 4px; }
+input { padding: .6rem; background: #222; color: inherit; border: 1px solid #666; margin-bottom: 1rem; }
+button { background: #e5a00d; color: #101010; font-weight: 600; border: 0; cursor: pointer; }
+button:disabled { opacity: .6; cursor: wait; }
+a { color: #48c7e0; }
+p { overflow-wrap: anywhere; min-height: 1.5rem; }
+[hidden] { display: none !important; }

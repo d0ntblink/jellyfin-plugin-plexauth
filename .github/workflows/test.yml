@@ -1,0 +1,40 @@
+name: Plugin Tests
+"on":
+  push: {}
+  pull_request: {}
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: dotnet test tests/PlexAuth.Tests/PlexAuth.Tests.csproj
+      - run: dotnet build tests/PlexAuth.TestProvider/PlexAuth.TestProvider.csproj
+      - run: npm ci && npx playwright install --with-deps chromium
+      - name: Test real Jellyfin 12.4
+        env:
+          PLEXAUTH_TEST_DIR: ${{ runner.temp }}/plexauth-integration
+        run: |
+          mkdir -p "$PLEXAUTH_TEST_DIR"
+          container=$(docker create --network none jellyfin/jellyfin@sha256:7da5184caa38c553f219f6772476540081f392a68049e2b68c923f6daf877f8e)
+          trap 'docker rm "$container"' EXIT
+          docker cp "$container:/jellyfin" "$PLEXAUTH_TEST_DIR/server"
+          node tests/integration.mjs
+      - name: Build production plugin only
+        run: dotnet build src/Jellyfin.Plugin.PlexAuth/Jellyfin.Plugin.PlexAuth.csproj -c Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PlexAuth-experimental
+          path: |
+            src/Jellyfin.Plugin.PlexAuth/bin/Release/net10.0/Jellyfin.Plugin.PlexAuth.dll
+            LICENSE
+            README.md
