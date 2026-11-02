@@ -70,8 +70,10 @@ to prove connectivity.
 
 ## Live Trial Gate
 
-Local implementation and isolated tests are approved. Production installation,
-Jellyfin restart, real Plex approval, and sync writes are not yet approved.
+Local implementation and isolated tests are approved. The operator subsequently
+approved production installation and one Jellyfin-only restart, and explicitly
+waived backups. Real Plex account approval and watched-state writes have not
+been performed by the installer.
 
 1. Inspect current Jellyfin container identity/start time, exact plugin paths,
    selected library IDs, local admin access, active sessions and disk ownership.
@@ -107,3 +109,39 @@ access. A separate local admin (including a `plex-` prefix) remains authorized.
 Playwright verifies the web button/browser credential handoff and mobile page,
 including loaded images. This is API/browser testing, not physical app or real
 Plex-provider certification.
+
+## Live Installation Recorded
+
+Installed and enabled on 2026-11-02 without backups, as explicitly requested.
+The production DLL and versioned manifest were published atomically; only
+Jellyfin was restarted. After startup, HTTPS health, disabled-first plugin load,
+local administrator login, exact Plex machine ID and all five library IDs were
+verified before enabling login. Plex's container identity/start time remained
+unchanged. A fresh browser verified the live Login with Plex button and mobile
+Quick Connect form. No sync service, watched-history write or full scan was started.
+
+Jellyfin rewrites descriptive/default manifest metadata during loading. The
+installer preserves exact DLL SHA-256 verification and compares manifest GUID,
+name, version, ABI, owner, active status and assembly whitelist structurally.
+Use `scripts/live.mjs verify` for the matching built/installed version; do not repeat
+`install` or restart it from stale context. Removing only the persistent plugin
+directory is part of rollback: replacing the Docker image alone would reload it.
+Physical app login/playback and real Plex-provider approval remain unverified.
+
+## Profile Sync Update
+
+Version 0.1.1 imports Plex username and available profile photo. The identity
+mapping remains numeric Plex ID to native Jellyfin UUID; existing numeric-name
+accounts are renamed in place. Name collisions never claim local accounts.
+Images use approved HTTPS hosts, a two-MiB response bound, no forwarded Plex
+token and Jellyfin's native image provider. Missing or failed photos preserve
+the existing image. Plex passwords and email are not copied into Jellyfin.
+
+The operator approved publication and a no-backup, Jellyfin-only upgrade after
+23 focused tests and a real isolated migration test preserved UUID, library
+policy and an existing native app token while serving the imported avatar.
+The updater's `upgrade` phase accepts only the known 0.1.0 manifest/DLL hash,
+refuses active playback or an existing target, publishes a versioned package,
+and restarts only Jellyfin. Existing configuration and account mappings stay
+outside the package and are not overwritten. Confirm actual live results before
+claiming the profile update has completed.

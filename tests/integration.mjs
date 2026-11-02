@@ -9,11 +9,12 @@ import { chromium } from 'playwright';
 const directory = process.env.PLEXAUTH_TEST_DIR;
 assert(directory && resolve(directory) === directory, 'Set PLEXAUTH_TEST_DIR to an absolute disposable directory containing server binaries.');
 const root = resolve(import.meta.dirname, '..');
+const manifest = JSON.parse(await readFile(join(root, 'meta.json'), 'utf8'));
 const dotnet = process.env.DOTNET_ROOT + '/dotnet';
 const profile = await mkdtemp(join(directory, 'profile-'));
 const config = join(profile, 'config');
 const plugins = join(profile, 'plugins');
-const pluginDirectory = join(plugins, 'PlexAuth_0.1.0.0');
+const pluginDirectory = join(plugins, 'PlexAuth_' + manifest.version);
 const adminPassword = randomBytes(32).toString('hex');
 const control = randomBytes(32).toString('hex');
 const address = 'https://127.0.0.1:18443';
@@ -27,7 +28,6 @@ await writeFile(join(config, 'network.xml'), `<?xml version="1.0"?><NetworkConfi
 await writeFile(join(config, 'plugins', 'Jellyfin.Plugin.PlexAuth.xml'), `<?xml version="1.0"?><PluginConfiguration><Enabled>true</Enabled><PublicUrl>${origin}</PublicUrl><MachineId>isolated-server</MachineId><ClientIdentifier>isolated-test-client</ClientIdentifier><LibraryIds>${libraryIds.map(id => `<guid>${id}</guid>`).join('')}</LibraryIds></PluginConfiguration>`);
 await copyFile(join(root, 'src/Jellyfin.Plugin.PlexAuth/bin/Debug/net10.0/Jellyfin.Plugin.PlexAuth.dll'), join(pluginDirectory, 'Jellyfin.Plugin.PlexAuth.dll'));
 await copyFile(join(root, 'tests/PlexAuth.TestProvider/bin/Debug/net10.0/PlexAuth.TestProvider.dll'), join(pluginDirectory, 'PlexAuth.TestProvider.dll'));
-const manifest = JSON.parse(await readFile(join(root, 'meta.json'), 'utf8'));
 manifest.assemblies.push('PlexAuth.TestProvider.dll');
 await writeFile(join(pluginDirectory, 'meta.json'), JSON.stringify(manifest));
 const server = spawn(join(directory, 'server/jellyfin'), ['--datadir', profile, '--configdir', config, '--cachedir', join(profile, 'cache'), '--logdir', join(profile, 'logs'), '--webdir', join(directory, 'server/jellyfin-web')],
@@ -88,6 +88,15 @@ try {
     assert.equal(app.User.Policy.EnabledFolders.length, 5);
     assert.equal((await call('/Users/Me', { token: app.AccessToken })).status, 200);
     assert.equal((await call('/Users/AuthenticateByName', { method: 'POST', body: { Username: 'plex-123', Pw: '' } })).status, 401);
+    assert.equal((await call('/_plexauth-test/profile', { method: 'POST', extra: { 'X-Test-Control': control } })).status, 200);
+    const updatedProfile = await (await call('/Users/Me', { token: app.AccessToken })).json();
+    assert.equal(updatedProfile.Id, app.User.Id);
+    assert.equal(updatedProfile.Name, 'isolated-alice');
+    assert.equal(updatedProfile.Policy.IsAdministrator, false);
+    assert.deepEqual(updatedProfile.Policy.EnabledFolders, app.User.Policy.EnabledFolders);
+    assert(updatedProfile.PrimaryImageTag);
+    assert.equal((await call('/UserImage?userId=' + app.User.Id)).status, 200);
+    assert.equal((await call('/Users/AuthenticateByName', { method: 'POST', body: { Username: 'isolated-alice', Pw: '' } })).status, 401);
     const index = await (await call('/web/index.html')).text();
     assert(index.includes('/plexauth/assets/auth.js'));
     const browser = await chromium.launch({ headless: true });

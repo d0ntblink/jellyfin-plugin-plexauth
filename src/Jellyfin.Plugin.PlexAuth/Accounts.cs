@@ -7,6 +7,7 @@ using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Authentication;
 using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Users;
 using Microsoft.AspNetCore.DataProtection;
@@ -15,7 +16,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Jellyfin.Plugin.PlexAuth;
 
-public sealed record AccountLink(long PlexId, Guid UserId, string Username, string PlexUsername, string ProtectedToken, DateTimeOffset LastVerified);
+public sealed record AccountLink(long PlexId, Guid UserId, string Username, string PlexUsername, string ProtectedToken, DateTimeOffset LastVerified, string? AvatarUrl = null);
 
 public sealed class Accounts
 {
@@ -26,12 +27,18 @@ public sealed class Accounts
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly string _file;
     private readonly Dictionary<long, AccountLink> _links;
+    private readonly PlexClient _plex;
+    private readonly IProviderManager _images;
+    private readonly ILogger<Accounts> _logger;
 
-    public Accounts(IUserManager users, ISessionManager sessions, INetworkManager network, IApplicationPaths paths)
+    public Accounts(IUserManager users, ISessionManager sessions, INetworkManager network, IApplicationPaths paths, PlexClient plex, IProviderManager images, ILogger<Accounts> logger)
     {
         _users = users;
         _sessions = sessions;
         _network = network;
+        _plex = plex;
+        _images = images;
+        _logger = logger;
         var directory = Path.Combine(paths.DataPath, "plexauth");
         Directory.CreateDirectory(directory);
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(directory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
@@ -54,18 +61,70 @@ public sealed class Accounts
                 user = _users.GetUserById(existing.UserId) ?? throw new SecurityException("The linked Jellyfin account no longer exists.");
             else
             {
-                var username = "plex-" + identity.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                if (_users.GetUserByName(username) is not null) throw new SecurityException("The reserved Jellyfin account name is already in use.");
+                var username = PreferredUsername(identity, name => _users.GetUserByName(name) is not null);
                 user = await _users.CreateUserAsync(username);
                 await _users.ChangePassword(user.Id, LoginFlows.Secret());
                 await _users.UpdatePolicyAsync(user.Id, NewPolicy(Plugin.Settings.LibraryIds, user.PasswordResetProviderId));
             }
             CheckPolicy(user, remoteIp);
-            _links[identity.Id] = new AccountLink(identity.Id, user.Id, user.Username, identity.Username, _protector.Protect(token), DateTimeOffset.UtcNow);
+            user = await SyncUsernameAsync(user, identity.Username, identity.Id);
+            var avatarUrl = await SyncAvatarAsync(user, identity, existing?.AvatarUrl);
+            _links[identity.Id] = new AccountLink(identity.Id, user.Id, user.Username, identity.Username, _protector.Protect(token), DateTimeOffset.UtcNow, avatarUrl);
             await SaveAsync();
             return user;
         }
         finally { _lock.Release(); }
+    }
+
+    public static string PreferredUsername(PlexIdentity identity, Func<string, bool> unavailable)
+    {
+        var preferred = identity.Username.Trim();
+        var fallback = "plex-" + identity.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (preferred.Length is > 0 and <= 64 && !preferred.Any(char.IsControl)
+            && preferred.IndexOfAny(['/', '\\', ':', '<', '>', '|', '"']) < 0 && !unavailable(preferred)) return preferred;
+        if (!unavailable(fallback)) return fallback;
+        throw new SecurityException("The Plex profile name conflicts with an existing Jellyfin account.");
+    }
+
+    private async Task<User> SyncUsernameAsync(User user, string plexUsername, long plexId)
+    {
+        if (user.HasPermission(PermissionKind.IsAdministrator)) throw new SecurityException("Cannot modify an administrator profile.");
+        var desired = PreferredUsername(new PlexIdentity(plexId, plexUsername, false), name =>
+        {
+            var existing = _users.GetUserByName(name);
+            return existing is not null && existing.Id != user.Id;
+        });
+        if (user.Username != desired)
+        {
+            await _users.RenameUser(user.Id, user.Username, desired);
+            return _users.GetUserById(user.Id) ?? throw new SecurityException("The linked Jellyfin account no longer exists.");
+        }
+        return user;
+    }
+
+    private async Task<string?> SyncAvatarAsync(User user, PlexIdentity identity, string? previousUrl)
+    {
+        if (string.IsNullOrEmpty(identity.Thumb) || (identity.Thumb == previousUrl && user.ProfileImage is not null)) return previousUrl;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var avatar = await _plex.AvatarAsync(identity, timeout.Token);
+            if (avatar is null) return previousUrl;
+            var directory = Path.Combine(Path.GetDirectoryName(_file)!, "avatars", user.Id.ToString("N"));
+            Directory.CreateDirectory(directory);
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(avatar.Bytes));
+            var file = Path.Combine(directory, hash + avatar.Extension);
+            using var stream = new MemoryStream(avatar.Bytes);
+            await _images.SaveImage(stream, avatar.ContentType, file);
+            user.ProfileImage = new ImageInfo(file);
+            await _users.UpdateUserAsync(user);
+            return identity.Thumb;
+        }
+        catch (Exception exception) when (exception is HttpRequestException or IOException or OperationCanceledException or ArgumentException)
+        {
+            _logger.LogWarning("Plex avatar could not be synchronized; the existing profile image was preserved.");
+            return previousUrl;
+        }
     }
 
     public static UserPolicy NewPolicy(Guid[] libraries, string passwordResetProviderId) => new()
@@ -112,14 +171,17 @@ public sealed class Accounts
         finally { _lock.Release(); }
     }
 
-    public async Task VerifiedAsync(AccountLink link, string plexUsername)
+    public async Task VerifiedAsync(AccountLink link, PlexIdentity identity)
     {
         await _lock.WaitAsync();
         try
         {
             if (_links.TryGetValue(link.PlexId, out var current) && current.ProtectedToken == link.ProtectedToken)
             {
-                _links[link.PlexId] = current with { LastVerified = DateTimeOffset.UtcNow, PlexUsername = plexUsername };
+                var user = _users.GetUserById(current.UserId) ?? throw new SecurityException("The linked Jellyfin account no longer exists.");
+                user = await SyncUsernameAsync(user, identity.Username, link.PlexId);
+                var avatarUrl = await SyncAvatarAsync(user, identity, current.AvatarUrl);
+                _links[link.PlexId] = current with { LastVerified = DateTimeOffset.UtcNow, PlexUsername = identity.Username, Username = user.Username, AvatarUrl = avatarUrl };
                 await SaveAsync();
             }
         }
@@ -183,7 +245,7 @@ public sealed class EntitlementWorker(Accounts accounts, PlexClient plex, ILogge
                 Plugin.Settings.Validate();
                 var identity = await plex.AuthorizeAsync(accounts.Token(link), Plugin.Settings.ClientIdentifier, Plugin.Settings.MachineId, cancellationToken);
                 if (identity.Id != link.PlexId) throw new SecurityException("Plex identity changed.");
-                await accounts.VerifiedAsync(link, identity.Username);
+                await accounts.VerifiedAsync(link, identity);
             }
             catch (PlexUnavailableException)
             {

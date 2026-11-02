@@ -20,9 +20,19 @@ certified against a real Plex account or physical mobile clients.
 
 An authenticated Plex account must see the **exact configured Plex machine ID**
 in its resources. A server-name match or membership of some other Plex server
-is insufficient. New identities become separate, non-admin Jellyfin accounts
-named `plex-<numeric-account-id>`. Local accounts, including the administrator,
+is insufficient. Identities map by numeric Plex ID to a stable Jellyfin UUID.
+The visible username and profile photo are imported from Plex on login and
+entitlement refresh. Existing numeric-name accounts are renamed in place,
+preserving their UUID, sessions, permissions and watched data. An invalid or
+occupied Plex username falls back to `plex-<numeric-account-id>`; an existing
+local account is never claimed. Local accounts, including the administrator,
 are never automatically matched by username/email, linked, or demoted.
+
+Avatars use bounded HTTPS downloads from approved Plex/Gravatar hosts and
+Jellyfin's native image provider. Failed imports preserve the existing image.
+Jellyfin has no corresponding profile-email field, and Plex passwords are never
+copied. The profile's password form is not a request for your Plex password;
+managed accounts continue to authenticate only through Plex/Quick Connect.
 
 **Any qualifying Plex-server access grants all configured Jellyfin library IDs.**
 This is intentional, not a mirror of Plex's individual library/age/label shares.
@@ -46,7 +56,7 @@ dotnet build src/Jellyfin.Plugin.PlexAuth/Jellyfin.Plugin.PlexAuth.csproj -c Rel
 ```
 
 Copy **only** the production `Jellyfin.Plugin.PlexAuth.dll` from the Release
-output and the production `meta.json` into `PlexAuth_0.1.0.0` under Jellyfin's actual plugin directory, then
+output and the production `meta.json` into `PlexAuth_0.1.1.0` under Jellyfin's actual plugin directory, then
 restart **Jellyfin only**. Never install the test-provider assembly. In
 Dashboard > Plugins > Plex Auth, configure the exact HTTPS URL, Plex machine
 identifier, and selected Jellyfin library UUIDs. The plugin is disabled by default.
@@ -76,10 +86,11 @@ test certificate, simulates only Plex responses, and stops the server on exit.
 Run `node tests/integration.mjs`. See the CI workflow for a reproducible runtime
 copy from the pinned image. Do not point the harness at production configuration.
 
-Verified: 13 unit/security tests plus genuine Jellyfin plugin loading, native
+Verified: 23 unit/security tests plus genuine Jellyfin plugin loading, native
 Quick Connect token issuance, selected-library policy, CSRF/replay/password
 denial, entitlement revocation, local-admin preservation, browser login/button,
-mobile layout, and image rendering. Physical app playback, real Plex approval,
+mobile layout, image rendering, in-place profile rename/avatar import with
+unchanged UUID/permissions/app token. Physical app playback, real Plex approval,
 and watched-state synchronization remain unverified.
 
 ## Watched State And Rollout

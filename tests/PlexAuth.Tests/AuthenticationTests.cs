@@ -78,6 +78,39 @@ public sealed class AuthenticationTests
         Assert.True(gate.TryEnter("other-client", 5));
     }
 
+    [Fact]
+    public void VisibleUsernameComesFromPlex()
+    {
+        Assert.Equal("alice", Accounts.PreferredUsername(new PlexIdentity(123, "alice", false), _ => false));
+    }
+
+    [Fact]
+    public void ExistingNamesAreNotClaimedByPlexIdentities()
+    {
+        Assert.Equal("plex-123", Accounts.PreferredUsername(new PlexIdentity(123, "admin", false), name => name == "admin"));
+        Assert.Throws<SecurityException>(() => Accounts.PreferredUsername(new PlexIdentity(123, "admin", false), _ => true));
+    }
+
+    [Theory]
+    [InlineData("../admin")]
+    [InlineData("alice\nadmin")]
+    public void UnsafeProfileNamesUseStableFallback(string name)
+    {
+        Assert.Equal("plex-123", Accounts.PreferredUsername(new PlexIdentity(123, name, false), _ => false));
+    }
+
+    [Theory]
+    [InlineData("https://plex.tv/users/123/avatar", true)]
+    [InlineData("https://secure.gravatar.com/avatar/example", true)]
+    [InlineData("http://plex.tv/users/123/avatar", false)]
+    [InlineData("https://plex.tv.attacker.example/avatar", false)]
+    [InlineData("https://127.0.0.1/avatar", false)]
+    [InlineData("https://plex.tv:8443/avatar", false)]
+    public void AvatarDownloadsStayOnApprovedHttpsHosts(string address, bool allowed)
+    {
+        Assert.Equal(allowed, PlexClient.IsAvatarHostAllowed(new Uri(address)));
+    }
+
     private sealed class FakePlex(string resources, string identity = "{\"id\":123,\"username\":\"alice\"}") : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

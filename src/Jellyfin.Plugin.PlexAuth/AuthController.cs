@@ -99,7 +99,7 @@ public sealed class AuthController(PlexClient plex, LoginFlows flows, Accounts a
             }
             var result = await sessions.AuthenticateDirect(new AuthenticationRequest
             {
-                UserId = user.Id, Username = user.Username, App = "Jellyfin Plex Auth", AppVersion = "0.1.0",
+                UserId = user.Id, Username = user.Username, App = "Jellyfin Plex Auth", AppVersion = "0.1.1",
                 DeviceId = request.DeviceId, DeviceName = (request.DeviceName ?? "Web Browser")[..Math.Min((request.DeviceName ?? "Web Browser").Length, 128)], RemoteEndPoint = remoteIp
             });
             return Ok(result);
