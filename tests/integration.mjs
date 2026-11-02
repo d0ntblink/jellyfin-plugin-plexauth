@@ -45,7 +45,10 @@ try {
             const response = await call('/System/Info/Public');
             if (response.ok && (await response.json()).Version === '12.4.0') break;
         } catch (_) { }
-        if (server.exitCode !== null || Date.now() > deadline) throw new Error('Isolated server did not become healthy. Inspect the private test log.');
+        if (server.exitCode !== null || Date.now() > deadline) {
+            const diagnostics = log.split('\n').filter(line => /\[ERR\]|\[FTL\]|Exception:|not found|No usable|You must install|Framework:|\.NET location:|FFmpeg|ffmpeg/i.test(line)).slice(-8).join('\n');
+            throw new Error('Isolated server did not become healthy. Startup diagnostics:\n' + diagnostics);
+        }
         await new Promise(resolve => setTimeout(resolve, 200));
     }
     assert.equal((await (await call('/System/Info/Public')).json()).Version, '12.4.0');
