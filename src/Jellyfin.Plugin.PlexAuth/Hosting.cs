@@ -68,6 +68,7 @@ public sealed class PluginMiddleware(RequestDelegate next, IApplicationPaths pat
             {
                 var html = await File.ReadAllTextAsync(file, context.RequestAborted);
                 var basePath = System.Text.Encodings.Web.HtmlEncoder.Default.Encode(context.Request.PathBase.Value ?? "");
+                html = html.Replace("</head>", $"<link rel=\"stylesheet\" href=\"{basePath}/plexauth/assets/auth.css\"></head>", StringComparison.OrdinalIgnoreCase);
                 html = html.Replace("</body>", $"<script src=\"{basePath}/plexauth/assets/auth.js\" defer></script></body>", StringComparison.OrdinalIgnoreCase);
                 context.Response.ContentType = "text/html; charset=utf-8";
                 context.Response.Headers.CacheControl = "no-store";

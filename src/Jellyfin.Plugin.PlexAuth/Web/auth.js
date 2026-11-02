@@ -19,9 +19,15 @@
         if (!target) return;
         const button = document.createElement('button');
         button.type = 'button';
-        button.className = 'raised block emby-button button-submit';
+        button.className = 'plexauth-button';
         button.dataset.plexauth = 'true';
-        button.textContent = 'Login with Plex';
+        const mark = document.createElement('img');
+        mark.className = 'plexauth-mark';
+        mark.src = root + '/plexauth/assets/plex.svg';
+        mark.alt = '';
+        mark.width = 22;
+        mark.height = 22;
+        button.append(mark, document.createTextNode('Login with Plex'));
         button.addEventListener('click', async () => {
             button.disabled = true;
             try { await start(); }
@@ -30,11 +36,8 @@
         target.appendChild(button);
         const connect = document.createElement('a');
         connect.href = root + '/plexauth/connect';
-        connect.className = 'emby-button raised block';
-        connect.style.textDecoration = 'none';
-        connect.style.textAlign = 'center';
-        connect.style.marginTop = '.5em';
-        connect.textContent = 'Plex Quick Connect';
+        connect.className = 'plexauth-link';
+        connect.append(mark.cloneNode(), document.createTextNode('Plex Quick Connect'));
         target.appendChild(connect);
     }
     if (!page) {

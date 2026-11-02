@@ -81,7 +81,7 @@ public sealed class PlexClient(HttpClient http)
         var request = new HttpRequestMessage(method, "https://plex.tv/api/v2/" + endpoint);
         request.Headers.Accept.ParseAdd("application/json");
         request.Headers.Add("X-Plex-Product", "Jellyfin Plex Auth");
-        request.Headers.Add("X-Plex-Version", "0.1.1");
+        request.Headers.Add("X-Plex-Version", "0.1.2");
         request.Headers.Add("X-Plex-Client-Identifier", clientId);
         if (token is not null) request.Headers.Add("X-Plex-Token", token);
         return request;

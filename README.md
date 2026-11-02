@@ -56,7 +56,7 @@ dotnet build src/Jellyfin.Plugin.PlexAuth/Jellyfin.Plugin.PlexAuth.csproj -c Rel
 ```
 
 Copy **only** the production `Jellyfin.Plugin.PlexAuth.dll` from the Release
-output and the production `meta.json` into `PlexAuth_0.1.1.0` under Jellyfin's actual plugin directory, then
+output and the production `meta.json` into `PlexAuth_0.1.2.0` under Jellyfin's actual plugin directory, then
 restart **Jellyfin only**. Never install the test-provider assembly. In
 Dashboard > Plugins > Plex Auth, configure the exact HTTPS URL, Plex machine
 identifier, and selected Jellyfin library UUIDs. The plugin is disabled by default.
@@ -69,6 +69,16 @@ Protect and back up that entire directory, including its private key material.
 Encryption at rest does not protect against an attacker who can read both the
 token store and its keys. Tokens/passwords are not returned to the client or
 logged by the plugin. Normal Jellyfin session tokens remain in the native client.
+
+## Login Appearance
+
+Plex controls use the provider's gold/charcoal palette and Plex mark, with
+locally hosted Open Sans. This matches the style without redistributing Plex's
+proprietary brand font. Styling is scoped to the plugin's controls/approval page;
+Jellyfin's other buttons and pages are unchanged. No external font/CDN request
+is needed during login. Open Sans is distributed under its bundled SIL OFL;
+the Plex mark is from the CC0 Simple Icons project and identifies the provider,
+not an affiliation with Plex.
 
 ## Tests
 

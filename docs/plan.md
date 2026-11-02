@@ -130,7 +130,7 @@ Physical app login/playback and real Plex-provider approval remain unverified.
 
 ## Profile Sync Update
 
-Version 0.1.1 imports Plex username and available profile photo. The identity
+Version 0.1.2 bundles Plex username/photo sync and scoped Plex-style login controls. The identity
 mapping remains numeric Plex ID to native Jellyfin UUID; existing numeric-name
 accounts are renamed in place. Name collisions never claim local accounts.
 Images use approved HTTPS hosts, a two-MiB response bound, no forwarded Plex

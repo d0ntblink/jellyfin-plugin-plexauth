@@ -26,20 +26,21 @@ public sealed class AuthController(PlexClient plex, LoginFlows flows, Accounts a
         var icon = Directory.Exists(paths.WebPath) ? Directory.EnumerateFiles(paths.WebPath, "touchicon*.png").Select(Path.GetFileName).FirstOrDefault() : null;
         var logo = icon is null ? string.Empty : $"<img src=\"{basePath}/web/{HtmlEncoder.Default.Encode(icon)}\" alt=\"Jellyfin\" width=\"48\" height=\"48\">";
         Response.Headers.CacheControl = "no-store";
-        Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
+        Response.Headers["Content-Security-Policy"] = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
         Response.Headers["Referrer-Policy"] = "no-referrer";
         return Content($"""
             <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jellyfin Plex Login</title><link rel="stylesheet" href="{basePath}/plexauth/assets/auth.css"><script src="{basePath}/plexauth/assets/auth.js" defer></script></head>
-            <body><main id="plexauth-page">{logo}<h1>Login with Plex</h1><form id="plexauth-form"><label for="code">Quick Connect code</label><input id="code" name="code" minlength="6" maxlength="6" autocomplete="off" autocapitalize="characters"><button type="submit">Login with Plex</button></form><p id="status" role="status"></p><a href="{basePath}/web/index.html#/login">Back to Jellyfin</a></main></body></html>
+            <body class="plexauth-standalone"><main id="plexauth-page">{logo}<h1>Login with Plex</h1><form id="plexauth-form"><label for="code">Quick Connect code</label><input id="code" name="code" minlength="6" maxlength="6" autocomplete="off" autocapitalize="characters"><button class="plexauth-button" type="submit"><img class="plexauth-mark" src="{basePath}/plexauth/assets/plex.svg" alt="" width="22" height="22">Login with Plex</button></form><p id="status" role="status"></p><a href="{basePath}/web/index.html#/login">Back to Jellyfin</a></main></body></html>
             """, "text/html; charset=utf-8");
     }
 
     [HttpGet("assets/{name}")]
     public IActionResult Asset(string name)
     {
-        if (name is not ("auth.js" or "auth.css")) return NotFound();
+        var contentType = name switch { "auth.js" => "text/javascript", "auth.css" => "text/css", "plex.svg" => "image/svg+xml", "OpenSans.ttf" => "font/ttf", "OpenSans-OFL.txt" => "text/plain", _ => null };
+        if (contentType is null) return NotFound();
         var stream = typeof(Plugin).Assembly.GetManifestResourceStream("Jellyfin.Plugin.PlexAuth.Web." + name);
-        return stream is null ? NotFound() : File(stream, name.EndsWith(".js", StringComparison.Ordinal) ? "text/javascript" : "text/css");
+        return stream is null ? NotFound() : File(stream, contentType);
     }
 
     [HttpPost("start")]
@@ -99,7 +100,7 @@ public sealed class AuthController(PlexClient plex, LoginFlows flows, Accounts a
             }
             var result = await sessions.AuthenticateDirect(new AuthenticationRequest
             {
-                UserId = user.Id, Username = user.Username, App = "Jellyfin Plex Auth", AppVersion = "0.1.1",
+                UserId = user.Id, Username = user.Username, App = "Jellyfin Plex Auth", AppVersion = "0.1.2",
                 DeviceId = request.DeviceId, DeviceName = (request.DeviceName ?? "Web Browser")[..Math.Min((request.DeviceName ?? "Web Browser").Length, 128)], RemoteEndPoint = remoteIp
             });
             return Ok(result);

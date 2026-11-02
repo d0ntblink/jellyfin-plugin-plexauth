@@ -1,12 +1,50 @@
-:root { color-scheme: dark; font-family: 'Noto Sans', sans-serif; color: #f2f2f2; background: #101010; }
-body { margin: 0; }
-main { max-width: 28rem; margin: 12vh auto 0; padding: 1.5rem; }
-h1 { font-size: 1.5rem; margin: 1rem 0 1.5rem; }
-label { display: block; margin: 0 0 .5rem; }
-input, button { box-sizing: border-box; width: 100%; min-height: 3rem; font: inherit; border-radius: 4px; }
-input { padding: .6rem; background: #222; color: inherit; border: 1px solid #666; margin-bottom: 1rem; }
-button { background: #e5a00d; color: #101010; font-weight: 600; border: 0; cursor: pointer; }
-button:disabled { opacity: .6; cursor: wait; }
-a { color: #48c7e0; }
-p { overflow-wrap: anywhere; min-height: 1.5rem; }
-[hidden] { display: none !important; }
+@font-face {
+	font-family: 'Plex Auth Open Sans';
+	src: url('./OpenSans.ttf') format('truetype');
+	font-weight: 300 800;
+	font-style: normal;
+	font-display: swap;
+}
+.plexauth-button, .plexauth-link, body.plexauth-standalone {
+	--plexauth-gold: #e5a00d;
+	--plexauth-ink: #17191b;
+	font-family: 'Plex Auth Open Sans', sans-serif;
+	letter-spacing: 0;
+}
+.plexauth-button, .plexauth-link {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: .65rem;
+	width: 100%;
+	min-height: 3rem;
+	margin: .75rem 0 0;
+	padding: .75rem 1rem;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 650;
+	line-height: 1.35;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+	background: var(--plexauth-gold);
+	color: var(--plexauth-ink);
+}
+.plexauth-button:hover { background: #f2ad22; color: #17191b; }
+.plexauth-link { background: #303338; color: #eee; border-color: #55595f; font-weight: 600; }
+.plexauth-link:hover { background: #41454a; color: #fff; }
+.plexauth-button:focus-visible, .plexauth-link:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.plexauth-button:disabled { opacity: .6; cursor: wait; }
+.plexauth-mark { flex: 0 0 1.4rem; width: 1.4rem; height: 1.4rem; }
+.plexauth-link .plexauth-mark { filter: invert(1); }
+body.plexauth-standalone { margin: 0; color-scheme: dark; color: #eee; background: linear-gradient(135deg, #303337, #17191b); min-height: 100vh; }
+#plexauth-page { box-sizing: border-box; max-width: 30rem; margin: 0 auto; padding: 12vh 1.5rem 2rem; }
+#plexauth-page h1 { font-size: 1.5rem; font-weight: 600; margin: 1.25rem 0 1.75rem; }
+#plexauth-page label { display: block; margin: 0 0 .6rem; font-size: .9rem; color: #c7c9cb; }
+#plexauth-page input { box-sizing: border-box; width: 100%; min-height: 3rem; border-radius: 4px; padding: .65rem .85rem; background: #17191b; color: #fff; border: 1px solid #65696e; margin-bottom: .5rem; font: inherit; }
+#plexauth-page input:focus { outline: 2px solid var(--plexauth-gold); outline-offset: 1px; }
+#plexauth-page > a { color: #e5a00d; font-size: .9rem; }
+#plexauth-page p { overflow-wrap: anywhere; min-height: 1.5rem; color: #c7c9cb; }
+#plexauth-page [hidden] { display: none !important; }

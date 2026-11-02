@@ -115,6 +115,13 @@ try {
         await page.route('https://app.plex.tv/auth**', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><script>location.replace(new URLSearchParams(location.hash.slice(2)).get("forwardUrl"));</script>' }));
         await page.goto(address + '/web/index.html#/login');
         await page.locator('button[data-plexauth]').waitFor({ state: 'visible' });
+        const plexStyle = await page.evaluate(async () => {
+            await document.fonts.ready;
+            const style = getComputedStyle(document.querySelector('button[data-plexauth]'));
+            return { color: style.backgroundColor, family: style.fontFamily, fontLoaded: document.fonts.check('16px "Plex Auth Open Sans"') };
+        });
+        assert.equal(plexStyle.color, 'rgb(229, 160, 13)');
+        assert(plexStyle.family.includes('Plex Auth Open Sans') && plexStyle.fontLoaded);
         await page.screenshot({ path: join(directory, 'login-desktop.png'), fullPage: true });
         await page.locator('button[data-plexauth]').click();
         try { await page.waitForURL('**/web/index.html#/home'); }
@@ -133,6 +140,7 @@ try {
         assert(await mobilePage.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await mobilePage.locator('img[alt="Jellyfin"]').waitFor({ state: 'visible' });
         assert(await mobilePage.evaluate(() => [...document.images].every(image => image.complete && image.naturalWidth > 0)));
+        assert(await mobilePage.evaluate(async () => { await document.fonts.ready; return document.fonts.check('16px "Plex Auth Open Sans"'); }));
         await mobilePage.screenshot({ path: join(directory, 'connect-mobile.png'), fullPage: true });
         await mobile.close();
         assert.deepEqual(errors, []);
