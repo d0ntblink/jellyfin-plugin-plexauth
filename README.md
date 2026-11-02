@@ -49,6 +49,29 @@ stream cutoff or a guarantee that already-downloaded media becomes inaccessible.
 
 ## Build And Configure
 
+### Install From The Plugin Catalog
+
+In Jellyfin, open Dashboard > Plugins > Repositories and add:
+
+```text
+https://github.com/d0ntblink/jellyfin-plugin-plexauth/releases/download/catalog/manifest.json
+```
+
+Refresh the catalog, select **Plex Auth**, install, and restart Jellyfin. Existing
+plugin configuration/profile mappings are outside the versioned package and
+are retained. Configure the plugin after installation; new installs are disabled
+by default. This is a third-party experimental plugin, not an official Plex app.
+
+The **Publish Jellyfin Repository** Action runs on `v<four-part-version>` tags
+matching `meta.json`, or manually through Actions > Run workflow using the current
+version. It runs the existing full test workflow, packages the production project
+with pinned JPRM, publishes a versioned ZIP/checksums, and updates the stable
+catalog while preserving older versions. Published DLL bytes are immutable;
+changes require a new version. The catalog release is a prerelease only to keep
+it separate from versioned plugin releases; its URL remains stable.
+
+### Build Manually
+
 Requires .NET 10 SDK. Build:
 
 ```sh

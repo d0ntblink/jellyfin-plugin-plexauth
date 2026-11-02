@@ -1,0 +1,130 @@
+name: Publish Jellyfin Repository
+"on":
+  push:
+    tags: ['v*']
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: jellyfin-plugin-catalog
+  cancel-in-progress: false
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - id: metadata
+        name: Validate release version
+        env:
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const meta = JSON.parse(fs.readFileSync('meta.json', 'utf8'));
+          assert(/^\d+\.\d+\.\d+\.\d+$/.test(meta.version));
+          assert.equal(meta.guid, '679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd');
+          assert.deepEqual(meta.assemblies, ['Jellyfin.Plugin.PlexAuth.dll']);
+          const tag = 'v' + meta.version;
+          assert(!process.env.RELEASE_TAG || process.env.RELEASE_TAG === tag, 'Tag must match meta.json version.');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `version=${meta.version}\ntag=${tag}\n`);
+          JS
+  tests:
+    needs: metadata
+    uses: ./.github/workflows/test.yml
+  publish:
+    needs: [metadata, tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.metadata.outputs.version }}
+      RELEASE_TAG: ${{ needs.metadata.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Jellyfin packager
+        run: python -m pip install jprm==1.1.0
+      - name: Build production-only ZIP
+        run: |
+          mkdir -p artifacts
+          jprm plugin build src/Jellyfin.Plugin.PlexAuth --output artifacts --version "$VERSION" --dotnet-framework net10.0
+          ZIP="artifacts/plex-auth_${VERSION}.zip"
+          test -f "$ZIP"
+          unzip -Z1 "$ZIP" > artifacts/files.txt
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const files = fs.readFileSync('artifacts/files.txt', 'utf8').trim().split('\n').sort();
+          assert.deepEqual(files, ['Jellyfin.Plugin.PlexAuth.dll', 'LICENSE', 'OpenSans-OFL.txt', 'README.md', 'meta.json'].sort());
+          JS
+          unzip -p "$ZIP" Jellyfin.Plugin.PlexAuth.dll | sha256sum > artifacts/dll.sha256
+      - name: Publish immutable versioned package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ZIP="artifacts/plex-auth_${VERSION}.zip"
+          status=$(curl --silent --show-error --output artifacts/release.json --write-out '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          case "$status" in
+            200)
+              mkdir -p artifacts/published
+              gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "plex-auth_${VERSION}.zip" --dir artifacts/published
+              unzip -p "artifacts/published/plex-auth_${VERSION}.zip" Jellyfin.Plugin.PlexAuth.dll | sha256sum > artifacts/published-dll.sha256
+              cmp artifacts/dll.sha256 artifacts/published-dll.sha256
+              cp "artifacts/published/plex-auth_${VERSION}.zip" "$ZIP"
+              ;;
+            404)
+              pushd artifacts
+              sha256sum "plex-auth_${VERSION}.zip" > "plex-auth_${VERSION}.zip.sha256"
+              md5sum "plex-auth_${VERSION}.zip" > "plex-auth_${VERSION}.zip.md5"
+              popd
+              gh release create "$RELEASE_TAG" "$ZIP" "$ZIP.sha256" "$ZIP.md5" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Plex Auth $VERSION (experimental)" --notes "Experimental Jellyfin 12 plugin. Tested native Quick Connect, profile sync and browser login. See README for access policy and limitations."
+              ;;
+            *) echo "Release lookup failed: HTTP $status"; exit 1 ;;
+          esac
+      - name: Update Jellyfin catalog
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          status=$(curl --silent --show-error --output artifacts/catalog-release.json --write-out '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/tags/catalog")
+          case "$status" in
+            200) gh release download catalog --repo "$GITHUB_REPOSITORY" --pattern manifest.json --dir artifacts ;;
+            404) jprm repo init artifacts/manifest.json ;;
+            *) echo "Catalog lookup failed: HTTP $status"; exit 1 ;;
+          esac
+          jprm repo add --plugin-url "https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/plex-auth_${VERSION}.zip" artifacts/manifest.json "artifacts/plex-auth_${VERSION}.zip"
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const catalog = JSON.parse(fs.readFileSync('artifacts/manifest.json', 'utf8'));
+          const plugin = catalog.find(item => item.guid === '679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd');
+          const version = plugin.versions.find(item => item.version === process.env.VERSION);
+          const checksum = createHash('md5').update(fs.readFileSync(`artifacts/plex-auth_${process.env.VERSION}.zip`)).digest('hex');
+          assert.equal(version.checksum.toLowerCase(), checksum);
+          assert.equal(version.targetAbi, '12.0.0.0');
+          assert.equal(version.sourceUrl, `https://github.com/${process.env.GITHUB_REPOSITORY}/releases/download/${process.env.RELEASE_TAG}/plex-auth_${process.env.VERSION}.zip`);
+          JS
+          if [[ "$status" == 404 ]]; then
+            gh release create catalog artifacts/manifest.json --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Jellyfin Plugin Catalog" --prerelease --notes "Stable Jellyfin repository feed. Add the manifest.json asset URL in Dashboard > Plugins > Repositories."
+          else
+            gh release upload catalog artifacts/manifest.json --repo "$GITHUB_REPOSITORY" --clobber
+          fi
+          echo "Repository URL: https://github.com/$GITHUB_REPOSITORY/releases/download/catalog/manifest.json" >> "$GITHUB_STEP_SUMMARY"

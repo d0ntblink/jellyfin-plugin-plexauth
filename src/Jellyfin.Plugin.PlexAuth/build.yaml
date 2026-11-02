@@ -1,0 +1,19 @@
+name: Plex Auth
+guid: 679e3ea6-3b13-4ebf-8b60-e8eab13e9ecd
+version: 0.1.2.0
+targetAbi: 12.0.0.0
+framework: net10.0
+owner: d0ntblink
+category: Authentication
+overview: Plex login and native Jellyfin Quick Connect authorization.
+description: >-
+  Experimental Plex-account login, exact-server authorization, profile sync,
+  and native Quick Connect approval for Jellyfin 12.
+changelog: >-
+  Import Plex usernames and avatars into existing profiles and add scoped
+  Plex-style login controls with locally hosted font and brand assets.
+artifacts:
+  - Jellyfin.Plugin.PlexAuth.dll
+  - LICENSE
+  - OpenSans-OFL.txt
+  - README.md

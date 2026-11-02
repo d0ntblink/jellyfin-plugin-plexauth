@@ -3,7 +3,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>0.1.2</Version>
+    <Version>0.1.2.0</Version>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
@@ -14,5 +14,8 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Web/**/*" />
+    <None Include="../../LICENSE" Link="LICENSE" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../../README.md" Link="README.md" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="Web/OpenSans-OFL.txt" Link="OpenSans-OFL.txt" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
